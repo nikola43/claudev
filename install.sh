@@ -26,7 +26,7 @@ exec llama-server -m "$MODEL_DIR/$MODEL_FILE" --alias qwen9b --host 127.0.0.1 --
   --chat-template-file "\$HOME/.claudev/qwen9b.jinja" "\$@"
 EOS
   chmod +x "$BIN/qwen9b"
-  HOST=http://127.0.0.1:8081; MODEL=qwen9b; START='nohup qwen9b >/tmp/qwen9b.log 2>&1 &'
+  HOST=http://127.0.0.1:8081; HEALTH=/health; MODEL=qwen9b; START='nohup qwen9b >/tmp/qwen9b.log 2>&1 &'
 else
   BIN="${BIN:-$HOME/.local/bin}"; mkdir -p "$BIN"
   command -v ollama >/dev/null || curl -fsSL https://ollama.com/install.sh | sh
@@ -39,7 +39,7 @@ else
   MODEL="hf.co/$HF_REPO:Q4_K_M"
   pgrep -x ollama >/dev/null || { OLLAMA_CONTEXT_LENGTH=$CTX nohup ollama serve >/tmp/ollama.log 2>&1 & sleep 3; }
   ollama pull "$MODEL"
-  HOST=http://127.0.0.1:11434; START="OLLAMA_CONTEXT_LENGTH=$CTX nohup ollama serve >/tmp/ollama.log 2>&1 &"
+  HOST=http://127.0.0.1:11434; HEALTH=/api/tags; START="OLLAMA_CONTEXT_LENGTH=$CTX nohup ollama serve >/tmp/ollama.log 2>&1 &"
 fi
 
 cat > "$BIN/claudev" <<EOS
@@ -49,10 +49,10 @@ set -e
 export PATH="\$HOME/.local/bin:\$PATH"
 HOST="\${CLAUDEV_HOST:-$HOST}"
 MODEL="\${CLAUDEV_MODEL:-$MODEL}"
-if ! curl -sf "\$HOST" >/dev/null 2>&1; then
+if ! curl -sf "\$HOST$HEALTH" >/dev/null 2>&1; then
   $START
-  for _ in \$(seq 1 120); do curl -sf "\$HOST" >/dev/null 2>&1 && break; sleep 1; done
-  curl -sf "\$HOST" >/dev/null || { echo "local model server failed to start"; exit 1; }
+  for _ in \$(seq 1 120); do curl -sf "\$HOST$HEALTH" >/dev/null 2>&1 && break; sleep 1; done
+  curl -sf "\$HOST$HEALTH" >/dev/null || { echo "local model server failed to start"; exit 1; }
 fi
 CLAUDE_CONFIG_DIR="\$HOME/.claudev" \\
 ANTHROPIC_BASE_URL="\$HOST" ANTHROPIC_AUTH_TOKEN=local ANTHROPIC_API_KEY= \\
