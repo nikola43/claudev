@@ -10,8 +10,12 @@ CTX=49152
 command -v claude >/dev/null || curl -fsSL https://claude.ai/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 
+# global for every user: /usr/local/bin (sudo if needed); fall back to ~/.local/bin
+BIN="${BIN:-/usr/local/bin}"
+if [ -w "$BIN" ]; then SUDO=""; elif command -v sudo >/dev/null && sudo -v 2>/dev/null; then SUDO=sudo; else BIN="$HOME/.local/bin"; SUDO=""; mkdir -p "$BIN"; fi
+put() { $SUDO tee "$BIN/$1" >/dev/null && $SUDO chmod 755 "$BIN/$1"; }
+
 if [ "$(uname)" = "Darwin" ]; then
-  BIN="${BIN:-/opt/homebrew/bin}"
   command -v brew >/dev/null || { echo "install Homebrew first: https://brew.sh"; exit 1; }
   command -v llama-server >/dev/null || brew install llama.cpp
   MODEL_DIR="$HOME/.lmstudio/models/local/Qwen3.5-9B-Defiant-Fable-Heretic-NEO-MAX"
@@ -19,16 +23,14 @@ if [ "$(uname)" = "Darwin" ]; then
   # ponytail: Qwen template rejects Claude Code's message layout; patched copy relaxes two checks
   [ -f "$HOME/.claudev/qwen9b.jinja" ] || curl -fsSL -o "$HOME/.claudev/qwen9b.jinja" https://raw.githubusercontent.com/nikola43/claudev/main/qwen9b.jinja
   [ -f "$MODEL_DIR/$MODEL_FILE" ] || curl -L --progress-bar -C - -o "$MODEL_DIR/$MODEL_FILE" "https://huggingface.co/$HF_REPO/resolve/main/$MODEL_FILE"
-  cat > "$BIN/qwen9b" <<EOS
+  put qwen9b <<EOS
 #!/bin/sh
 exec llama-server -m "$MODEL_DIR/$MODEL_FILE" --alias qwen9b --host 127.0.0.1 --port 8081 \\
   -c $CTX -ngl 99 -fa on -ctk q8_0 -ctv q8_0 -b 2048 -ub 1024 -t 8 --mlock --jinja \\
   --chat-template-file "\$HOME/.claudev/qwen9b.jinja" "\$@"
 EOS
-  chmod +x "$BIN/qwen9b"
   HOST=http://127.0.0.1:8081; HEALTH=/health; MODEL=qwen9b; START="nohup $BIN/qwen9b >/tmp/qwen9b.log 2>&1 &"
 else
-  BIN="${BIN:-$HOME/.local/bin}"; mkdir -p "$BIN"
   command -v ollama >/dev/null || curl -fsSL https://ollama.com/install.sh | sh
   # ponytail: ollama defaults to a 4k context, far too small for Claude Code
   if command -v systemctl >/dev/null && systemctl is-enabled ollama >/dev/null 2>&1; then
@@ -42,7 +44,7 @@ else
   HOST=http://127.0.0.1:11434; HEALTH=/api/tags; START="OLLAMA_CONTEXT_LENGTH=$CTX nohup ollama serve >/tmp/ollama.log 2>&1 &"
 fi
 
-cat > "$BIN/claudev" <<EOS
+put claudev <<EOS
 #!/bin/sh
 # claudev — Claude Code on a local Qwen3.5-9B.
 set -e
@@ -61,6 +63,5 @@ ANTHROPIC_DEFAULT_OPUS_MODEL="\$MODEL" ANTHROPIC_DEFAULT_HAIKU_MODEL="\$MODEL" \
 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 CLAUDE_CODE_MAX_CONTEXT_TOKENS=$CTX \\
 exec claude --model "\$MODEL" "\$@"
 EOS
-chmod +x "$BIN/claudev"
 case ":$PATH:" in *":$BIN:"*) ;; *) echo "add to your shell rc:  export PATH=\"$BIN:\$PATH\"";; esac
 echo "done. run: claudev"
