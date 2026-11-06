@@ -17,7 +17,7 @@ if [ "$(uname)" = "Darwin" ]; then
   MODEL_DIR="$HOME/.lmstudio/models/local/Qwen3.5-9B-Defiant-Fable-Heretic-NEO-MAX"
   mkdir -p "$MODEL_DIR" "$HOME/.claudev"
   # ponytail: Qwen template rejects Claude Code's message layout; patched copy relaxes two checks
-  curl -fsSL -o "$HOME/.claudev/qwen9b.jinja" https://raw.githubusercontent.com/nikola43/claudev/main/qwen9b.jinja
+  [ -f "$HOME/.claudev/qwen9b.jinja" ] || curl -fsSL -o "$HOME/.claudev/qwen9b.jinja" https://raw.githubusercontent.com/nikola43/claudev/main/qwen9b.jinja
   [ -f "$MODEL_DIR/$MODEL_FILE" ] || curl -L --progress-bar -C - -o "$MODEL_DIR/$MODEL_FILE" "https://huggingface.co/$HF_REPO/resolve/main/$MODEL_FILE"
   cat > "$BIN/qwen9b" <<EOS
 #!/bin/sh
