@@ -26,7 +26,7 @@ exec llama-server -m "$MODEL_DIR/$MODEL_FILE" --alias qwen9b --host 127.0.0.1 --
   --chat-template-file "\$HOME/.claudev/qwen9b.jinja" "\$@"
 EOS
   chmod +x "$BIN/qwen9b"
-  HOST=http://127.0.0.1:8081; HEALTH=/health; MODEL=qwen9b; START='nohup qwen9b >/tmp/qwen9b.log 2>&1 &'
+  HOST=http://127.0.0.1:8081; HEALTH=/health; MODEL=qwen9b; START="nohup $BIN/qwen9b >/tmp/qwen9b.log 2>&1 &"
 else
   BIN="${BIN:-$HOME/.local/bin}"; mkdir -p "$BIN"
   command -v ollama >/dev/null || curl -fsSL https://ollama.com/install.sh | sh
